@@ -38,10 +38,23 @@ contract PredictionMarket is Ownable {
     uint256 private constant PRECISION = 1e18;
 
     /// Checkpoint 2 ///
+    address public immutable i_liquidityProvider;
+    address public immutable i_oracle;
+    uint256 public immutable i_initialTokenValue;
+    uint8 public immutable i_initialYesProbability;
+    uint8 public immutable i_percentageLocked;
+
+    string public s_question;
+    uint256 public s_ethCollateral;
+    uint256 public s_lpTradingRevenue;
 
     /// Checkpoint 3 ///
+    PredictionMarketToken public immutable i_yesToken;
+    PredictionMarketToken public immutable i_noToken;
 
     /// Checkpoint 5 ///
+    PredictionMarketToken public s_winningToken;
+    bool public s_isReported;
 
     /////////////////////////
     /// Events //////
@@ -60,6 +73,18 @@ contract PredictionMarket is Ownable {
     /////////////////
 
     /// Checkpoint 5 ///
+    modifier predictionNotReported() {
+        if (s_isReported) {
+            revert PredictionMarket__PredictionAlreadyReported();
+        }
+        _;
+    }
+    modifier onlyOracle() {
+        if (msg.sender != i_oracle) {
+            revert PredictionMarket__OnlyOracleCanReport();
+        }
+        _;
+    }
 
     /// Checkpoint 6 ///
 
@@ -78,7 +103,32 @@ contract PredictionMarket is Ownable {
         uint8 _percentageToLock
     ) payable Ownable(_liquidityProvider) {
         /// Checkpoint 2 ////
+        if (msg.value == 0) {
+            revert PredictionMarket__MustProvideETHForInitialLiquidity();
+        }
+        if (_initialYesProbability <= 0 || _initialYesProbability >= 100) {
+            revert PredictionMarket__InvalidProbability();
+        }
+        if (_percentageToLock <= 0 || _percentageToLock >= 100) {
+            revert PredictionMarket__InvalidPercentageToLock();
+        }
+        i_liquidityProvider = _liquidityProvider; // not really necessary just used for Ownable but whatever
+        i_oracle = _oracle;
+        s_question = _question;
+        i_initialTokenValue = _initialTokenValue;
+        i_initialYesProbability = _initialYesProbability;
+        i_percentageLocked = _percentageToLock;
+        s_ethCollateral = msg.value;
+        s_lpTradingRevenue = 0; // also not really neccessary but whatever
+
         /// Checkpoint 3 ////
+        uint256 initialSupply = s_ethCollateral * PRECISION / i_initialTokenValue;
+
+        i_yesToken = new PredictionMarketToken("Yes", "Y", owner(), initialSupply);
+        i_noToken = new PredictionMarketToken("No", "N", owner(), initialSupply);
+
+        i_yesToken.transfer(owner(), initialSupply * i_initialYesProbability * i_percentageLocked * 2 / 10000);
+        i_noToken.transfer(owner(), initialSupply * (100 - i_initialYesProbability) * i_percentageLocked * 2 / 10000);
     }
 
     /////////////////
@@ -89,8 +139,20 @@ contract PredictionMarket is Ownable {
      * @notice Add liquidity to the prediction market and mint tokens
      * @dev Only the owner can add liquidity and only if the prediction is not reported
      */
-    function addLiquidity() external payable onlyOwner {
+    function addLiquidity() external payable onlyOwner predictionNotReported {
         //// Checkpoint 4 ////
+        uint256 ETHadded = msg.value;
+        if (ETHadded == 0) {
+            revert PredictionMarket__MustProvideETHForInitialLiquidity();
+        }
+        uint256 newSupply = ETHadded * PRECISION / i_initialTokenValue;
+
+        i_yesToken.mint(address(this), newSupply);
+        i_noToken.mint(address(this), newSupply);
+
+        s_ethCollateral += ETHadded;
+
+        emit LiquidityAdded(owner(), ETHadded, newSupply);
     }
 
     /**
@@ -98,8 +160,31 @@ contract PredictionMarket is Ownable {
      * @dev Only the owner can remove liquidity and only if the prediction is not reported
      * @param _ethToWithdraw Amount of ETH to withdraw from liquidity pool
      */
-    function removeLiquidity(uint256 _ethToWithdraw) external onlyOwner {
+    function removeLiquidity(uint256 _ethToWithdraw) external onlyOwner predictionNotReported {
         //// Checkpoint 4 ////
+        if (_ethToWithdraw == 0) {
+            revert PredictionMarket__AmountMustBeGreaterThanZero();
+        }
+        // if (_ethToWithdraw > s_ethCollateral) { // pretty sure this is technically correct but test uses to token amounts
+        //     revert PredictionMarket__InsufficientTokenReserve(Outcome.YES, uint256 _amountToken)();
+        // }
+        uint256 _amounttoBurn = _ethToWithdraw * PRECISION / i_initialTokenValue;
+        if (i_yesToken.balanceOf(address(this)) < _amounttoBurn) {
+            revert PredictionMarket__InsufficientTokenReserve(Outcome.YES, _amounttoBurn);
+        }
+        if (i_noToken.balanceOf(address(this)) < _amounttoBurn) {
+            revert PredictionMarket__InsufficientTokenReserve(Outcome.NO, _amounttoBurn);
+        }
+
+        i_yesToken.burn(address(this), _amounttoBurn);
+        i_noToken.burn(address(this), _amounttoBurn);
+        s_ethCollateral -= _ethToWithdraw;
+
+        (bool success, ) = owner().call{ value: _ethToWithdraw }("");
+        if (!success) {
+            revert PredictionMarket__ETHTransferFailed();
+        }
+        emit LiquidityRemoved(owner(), _ethToWithdraw, _amounttoBurn);
     }
 
     /**
@@ -107,8 +192,18 @@ contract PredictionMarket is Ownable {
      * @dev Only the oracle can report the winning outcome and only if the prediction is not reported
      * @param _winningOutcome The winning outcome (YES or NO)
      */
-    function report(Outcome _winningOutcome) external {
+    function report(Outcome _winningOutcome) external onlyOracle predictionNotReported {
         //// Checkpoint 5 ////
+        if (_winningOutcome == Outcome.YES) {
+            s_winningToken = i_yesToken;
+        } else if (_winningOutcome == Outcome.NO) {
+            s_winningToken = i_noToken;
+        } else {
+            revert PredictionMarket__InvalidProbability();
+
+        }
+        s_isReported = true;
+        emit MarketReported(msg.sender, _winningOutcome, address(s_winningToken));
     }
 
     /**
@@ -118,8 +213,38 @@ contract PredictionMarket is Ownable {
      */
     function resolveMarketAndWithdraw() external onlyOwner returns (uint256 ethRedeemed) {
         /// Checkpoint 6 ////
-    }
+        if (!s_isReported) {
+            revert PredictionMarket__PredictionNotReported();
+        }
+        uint256 winningTokens = s_winningToken.balanceOf(address(this));
+        uint256 winningTokenValue = 0;
 
+        if (winningTokens > 0){
+            winningTokenValue = winningTokens * i_initialTokenValue / PRECISION;
+        }
+        if (winningTokenValue > s_ethCollateral) {
+            winningTokenValue = s_ethCollateral;
+        }
+        
+        uint256 totalEthToSend = s_lpTradingRevenue + winningTokenValue;
+
+        if (totalEthToSend == 0) {
+            revert PredictionMarket__InsufficientLiquidity();   
+        }
+        (bool success, ) = owner().call{ value: totalEthToSend }("");
+        if (!success) {
+            revert PredictionMarket__ETHTransferFailed();
+        }
+
+        s_winningToken.burn(address(this), s_winningToken.balanceOf(address(this)));
+        s_lpTradingRevenue = 0;
+        s_ethCollateral-= totalEthToSend;
+
+        emit MarketResolved(msg.sender, totalEthToSend);
+        emit WinningTokensRedeemed(msg.sender, s_winningToken.balanceOf(address(this)), totalEthToSend);
+        
+        return totalEthToSend;
+    }
     /**
      * @notice Buy prediction outcome tokens with ETH, need to call priceInETH function first to get right amount of tokens to buy
      * @param _outcome The possible outcome (YES or NO) to buy tokens for
@@ -234,22 +359,22 @@ contract PredictionMarket is Ownable {
         )
     {
         /// Checkpoint 3 ////
-        // oracle = i_oracle;
-        // initialTokenValue = i_initialTokenValue;
-        // percentageLocked = i_percentageLocked;
-        // initialProbability = i_initialYesProbability;
-        // question = s_question;
-        // ethCollateral = s_ethCollateral;
-        // lpTradingRevenue = s_lpTradingRevenue;
-        // predictionMarketOwner = owner();
-        // yesToken = address(i_yesToken);
-        // noToken = address(i_noToken);
-        // outcome1 = i_yesToken.name();
-        // outcome2 = i_noToken.name();
-        // yesTokenReserve = i_yesToken.balanceOf(address(this));
-        // noTokenReserve = i_noToken.balanceOf(address(this));
+        oracle = i_oracle;
+        initialTokenValue = i_initialTokenValue;
+        percentageLocked = i_percentageLocked;
+        initialProbability = i_initialYesProbability;
+        question = s_question;
+        ethCollateral = s_ethCollateral;
+        lpTradingRevenue = s_lpTradingRevenue;
+        predictionMarketOwner = owner();
+        yesToken = address(i_yesToken);
+        noToken = address(i_noToken);
+        outcome1 = i_yesToken.name();
+        outcome2 = i_noToken.name();
+        yesTokenReserve = i_yesToken.balanceOf(address(this));
+        noTokenReserve = i_noToken.balanceOf(address(this));
         /// Checkpoint 5 ////
-        // isReported = s_isReported;
-        // winningToken = address(s_winningToken);
+        isReported = s_isReported;
+        winningToken = address(s_winningToken);
     }
 }
