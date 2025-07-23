@@ -757,7 +757,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should correctly calculate buy price in ETH", async function () {
       const [owner, oracle] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -766,7 +766,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contracts
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -802,7 +807,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should correctly calculate sell price in ETH", async function () {
       const [owner, oracle] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -811,7 +816,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contracts
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -847,7 +857,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to buy more tokens than available in reserve", async function () {
       const [owner, oracle] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -856,7 +866,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -875,7 +890,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should correctly calculate probability for different token amounts", async function () {
       const [owner, oracle] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -884,7 +899,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contracts
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -921,7 +941,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should correctly get current reserves for both YES and NO outcomes", async function () {
       const [owner, oracle] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -930,7 +950,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contracts
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -975,7 +1000,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should correctly calculate probability with edge cases", async function () {
       const [owner, oracle] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -984,8 +1009,16 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
 
+      // const predictionMarket: PredictionMarket = await ethers.getContractAt(
+      //   "PredictionMarket",
+      //   await predictionMarket2.getAddress(),
+      // );
+
+      // THIS ISNT TESTING THE CONTRACT WHATSOEVER????
+      // Is this literally just testing the formula? I think so as the actual token probabilites are testing in another test
+      // Why do the whole deploment thing?
       // Calculate expected values
       const PRECISION = BigInt(1e18);
       const initialTokenAmount = (ethers.parseEther("10") * PRECISION) / ethers.parseEther("1");
@@ -1036,7 +1069,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to buy tokens with zero amount", async function () {
       const [owner, oracle] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1045,7 +1078,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Try to buy tokens with zero amount
       await expect(
@@ -1056,7 +1094,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to sell tokens with zero amount", async function () {
       const [owner, oracle] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1065,7 +1103,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Try to sell tokens with zero amount
       await expect(predictionMarket.connect(owner).sellTokensForEth(0, 0)).to.be.revertedWithCustomError(
@@ -1077,7 +1120,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to buy tokens with incorrect ETH amount", async function () {
       const [owner, oracle, buyer] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1086,7 +1129,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1105,7 +1153,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should successfully buy tokens with ETH", async function () {
       const [owner, oracle, buyer] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1114,7 +1162,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1143,7 +1196,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should successfully sell tokens for ETH", async function () {
       const [owner, oracle, seller] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1152,7 +1205,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1198,7 +1256,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to sell more tokens than owned", async function () {
       const [owner, oracle, seller] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1207,7 +1265,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1232,7 +1295,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to sell tokens without approval", async function () {
       const [owner, oracle, seller] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1241,7 +1304,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1262,7 +1330,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should emit correct events when buying and selling tokens", async function () {
       const [owner, oracle, trader] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1271,7 +1339,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1301,7 +1374,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to buy tokens after prediction is reported", async function () {
       const [owner, oracle, buyer] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1310,7 +1383,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1332,7 +1410,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to sell tokens after prediction is reported", async function () {
       const [owner, oracle, seller] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1341,7 +1419,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1368,7 +1451,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Owner cannot buy or sell tokens", async function () {
       const [owner] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         owner.address,
         "Test Question",
@@ -1377,7 +1460,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1402,7 +1490,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to redeem before prediction is reported", async function () {
       const [owner, oracle, redeemer] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1411,7 +1499,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Try to redeem before prediction is reported
       await expect(
@@ -1422,7 +1515,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to redeem more tokens than owned", async function () {
       const [owner, oracle, redeemer] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1431,7 +1524,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Report the prediction
       await predictionMarket.connect(oracle).report(0); // Report YES as winning outcome
@@ -1445,7 +1543,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should revert when trying to redeem zero tokens", async function () {
       const [owner, oracle, redeemer] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1454,7 +1552,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Report the prediction
       await predictionMarket.connect(oracle).report(0);
@@ -1469,7 +1572,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should successfully redeem winning tokens and receive ETH", async function () {
       const [owner, oracle, redeemer] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1478,7 +1581,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1524,7 +1632,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Should emit correct WinningTokensRedeemed event", async function () {
       const [owner, oracle, redeemer] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1533,7 +1641,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Get token contract
       const yesTokenAddress = await predictionMarket.i_yesToken();
@@ -1559,7 +1672,7 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
     it("Owner cannot redeem tokens", async function () {
       const [owner, oracle] = await ethers.getSigners();
       const predictionMarketFactory = await ethers.getContractFactory(contractArtifact);
-      const predictionMarket = await predictionMarketFactory.deploy(
+      const predictionMarket2 = await predictionMarketFactory.deploy(
         owner.address,
         oracle.address,
         "Test Question",
@@ -1568,7 +1681,12 @@ describe("📈📉🏎️ Prediction Markets Challenge", function () {
         20,
         { value: ethers.parseEther("10") },
       );
-      await predictionMarket.waitForDeployment();
+      await predictionMarket2.waitForDeployment();
+
+      const predictionMarket: PredictionMarket = await ethers.getContractAt(
+        "PredictionMarket",
+        await predictionMarket2.getAddress(),
+      );
 
       // Report YES as winning outcome
       await predictionMarket.connect(oracle).report(0);

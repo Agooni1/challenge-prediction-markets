@@ -29,7 +29,9 @@ const deployYourContract: DeployFunction = async function (hre: HardhatRuntimeEn
   const initialProbability = 50;
   const percentageLocked = 10;
   const liquidityProvider = deployer;
+  // const liquidityProvider = "0xe8148eFE71B017c250764AC6682389C26e400F4C";
   const oracle = deployer;
+  // const oracle = "0xe8148eFE71B017c250764AC6682389C26e400F4C";
 
   await deploy("PredictionMarket", {
     from: deployer,

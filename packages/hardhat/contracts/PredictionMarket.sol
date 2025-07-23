@@ -25,6 +25,7 @@ contract PredictionMarket is Ownable {
     error PredictionMarket__InsufficientAllowance(uint256 _tradingAmount, uint256 _allowance);
     error PredictionMarket__InsufficientLiquidity();
     error PredictionMarket__InvalidPercentageToLock();
+    
 
     //////////////////////////
     /// State Variables //////
@@ -79,6 +80,8 @@ contract PredictionMarket is Ownable {
         }
         _;
     }
+
+    /// Checkpoint 6 ///
     modifier onlyOracle() {
         if (msg.sender != i_oracle) {
             revert PredictionMarket__OnlyOracleCanReport();
@@ -86,9 +89,13 @@ contract PredictionMarket is Ownable {
         _;
     }
 
-    /// Checkpoint 6 ///
-
     /// Checkpoint 8 ///
+    modifier amountGreaterThanZero(uint256 _amount) {
+        if (_amount == 0) {
+            revert PredictionMarket__AmountMustBeGreaterThanZero();
+        }
+        _;
+    }
 
     //////////////////
     ////Constructor///
@@ -250,8 +257,38 @@ contract PredictionMarket is Ownable {
      * @param _outcome The possible outcome (YES or NO) to buy tokens for
      * @param _amountTokenToBuy Amount of tokens to purchase
      */
-    function buyTokensWithETH(Outcome _outcome, uint256 _amountTokenToBuy) external payable {
+    function buyTokensWithETH(Outcome _outcome, uint256 _amountTokenToBuy) external payable amountGreaterThanZero(_amountTokenToBuy) predictionNotReported {
         /// Checkpoint 8 ////
+        uint256 priceInEth = getBuyPriceInEth(_outcome, _amountTokenToBuy);
+        if (msg.value != priceInEth) {
+            revert PredictionMarket__MustSendExactETHAmount();
+        }
+        if (msg.sender == owner()) {
+            revert PredictionMarket__OwnerCannotCall();
+        }
+        if (_amountTokenToBuy <= 0) {
+            revert PredictionMarket__AmountMustBeGreaterThanZero();
+        }
+
+        PredictionMarketToken wantedToken;
+
+        if (_outcome == Outcome.YES) {
+            wantedToken = i_yesToken;
+        } else {
+            wantedToken = i_noToken;
+        }
+        if (wantedToken.balanceOf(address(this)) < _amountTokenToBuy) {
+            revert PredictionMarket__InsufficientTokenReserve(_outcome, _amountTokenToBuy);
+        }
+
+        bool success = wantedToken.transfer(msg.sender, _amountTokenToBuy);
+
+        if (!success) {
+            revert PredictionMarket__TokenTransferFailed();
+        }
+        s_lpTradingRevenue += msg.value;
+        emit TokensPurchased(msg.sender, _outcome, _amountTokenToBuy, priceInEth);
+
     }
 
     /**
@@ -259,8 +296,44 @@ contract PredictionMarket is Ownable {
      * @param _outcome The possible outcome (YES or NO) to sell tokens for
      * @param _tradingAmount The amount of tokens to sell
      */
-    function sellTokensForEth(Outcome _outcome, uint256 _tradingAmount) external {
+    function sellTokensForEth(Outcome _outcome, uint256 _tradingAmount) external predictionNotReported {
         /// Checkpoint 8 ////
+        uint256 priceInEth = getSellPriceInEth(_outcome, _tradingAmount);
+        PredictionMarketToken wantedToken;
+        if (_tradingAmount <= 0) {
+            revert PredictionMarket__AmountMustBeGreaterThanZero();
+        }
+         if( msg.sender == owner()) {
+            revert PredictionMarket__OwnerCannotCall();
+        }
+
+        if (_outcome == Outcome.YES) {
+            wantedToken = i_yesToken;
+        } else {
+            wantedToken = i_noToken;
+        }
+        if (wantedToken.balanceOf(msg.sender) < _tradingAmount) {
+            revert PredictionMarket__InsufficientBalance(_tradingAmount, wantedToken.balanceOf(msg.sender));
+        }
+        if (wantedToken.allowance(msg.sender, address(this)) < _tradingAmount) {
+            revert PredictionMarket__InsufficientAllowance(_tradingAmount, wantedToken.allowance(msg.sender, address(this)));
+        }
+        if (address(this).balance < priceInEth) {
+            revert PredictionMarket__InsufficientLiquidity();
+        }
+
+        bool success = wantedToken.transferFrom(msg.sender, address(this), _tradingAmount);
+
+        if (!success) {
+            revert PredictionMarket__TokenTransferFailed();
+        }
+        (success, ) = msg.sender.call{ value: priceInEth }("");
+        if (!success) {
+            revert PredictionMarket__ETHTransferFailed();
+        }
+        s_lpTradingRevenue -= priceInEth; //idk why SRE solution does this before the function call.. Thought you want to update states after external calls
+
+        emit TokensSold(msg.sender, _outcome, _tradingAmount, priceInEth);
     }
 
     /**
@@ -270,6 +343,27 @@ contract PredictionMarket is Ownable {
      */
     function redeemWinningTokens(uint256 _amount) external {
         /// Checkpoint 9 ////
+        if (msg.sender == owner()) {
+            revert PredictionMarket__OwnerCannotCall();
+        }
+        if (!s_isReported) {
+            revert PredictionMarket__PredictionNotReported();
+        }
+        if (s_winningToken.balanceOf(msg.sender) < _amount) {
+            revert PredictionMarket__InsufficientWinningTokens();
+        }
+        uint256 payout = _amount * i_initialTokenValue / PRECISION;
+        if (payout == 0) {
+            revert PredictionMarket__AmountMustBeGreaterThanZero();
+        }
+        s_winningToken.burn(msg.sender, _amount);
+        (bool success, ) = msg.sender.call{ value: payout }("");
+        if (!success) {
+            revert PredictionMarket__ETHTransferFailed();
+        }   
+        s_ethCollateral -= payout; // is still don't understand why SRE solution does this before the function call
+        emit WinningTokensRedeemed(msg.sender, _amount, payout);
+
     }
 
     /**
@@ -280,6 +374,11 @@ contract PredictionMarket is Ownable {
      */
     function getBuyPriceInEth(Outcome _outcome, uint256 _tradingAmount) public view returns (uint256) {
         /// Checkpoint 7 ////
+        uint256 probBefore = _calculatePriceInEth(_outcome, 0, false);
+        uint256 probAfter = _calculatePriceInEth(_outcome, _tradingAmount, false);
+        uint256 probAvg = (probBefore + probAfter) / 2;
+        uint256 price = i_initialTokenValue * probAvg * _tradingAmount / PRECISION / PRECISION;
+        return price;
     }
 
     /**
@@ -290,6 +389,11 @@ contract PredictionMarket is Ownable {
      */
     function getSellPriceInEth(Outcome _outcome, uint256 _tradingAmount) public view returns (uint256) {
         /// Checkpoint 7 ////
+        uint256 probBefore = _calculatePriceInEth(_outcome, 0, true);
+        uint256 probAfter = _calculatePriceInEth(_outcome, _tradingAmount, true);
+        uint256 probAvg = (probBefore + probAfter) / 2;
+        uint256 price = i_initialTokenValue * probAvg * _tradingAmount / PRECISION / PRECISION;
+        return price;
     }
 
     /////////////////////////
@@ -308,6 +412,43 @@ contract PredictionMarket is Ownable {
         bool _isSelling
     ) private view returns (uint256) {
         /// Checkpoint 7 ////
+        if (_outcome != Outcome.YES && _outcome != Outcome.NO) {
+            revert PredictionMarket__InvalidProbability();
+        }
+        (uint256 wantedTokenReserve, uint256 otherTokenReserve) = _getCurrentReserves(_outcome);
+
+        if (!_isSelling && wantedTokenReserve < _tradingAmount) {
+            revert PredictionMarket__InsufficientLiquidity();
+        }
+        
+        // am i missing something here? did SRE miss this>
+        // oh you know what im only getting price (obviously) this would be more for the actual selling function. Keep for later but I guess the transaction would revert anyway
+        // if ( _outcome == Outcome.YES && _isSelling && _tradingAmount > i_yesToken.balanceOf(msg.sender)) {
+        //     revert PredictionMarket__InsufficientBalance(_tradingAmount, i_yesToken.balanceOf(msg.sender));
+        // }
+        // if (_outcome == Outcome.NO && _isSelling && _tradingAmount > i_noToken.balanceOf(msg.sender)) {
+        //     revert PredictionMarket__InsufficientBalance(_tradingAmount, i_noToken.balanceOf(msg.sender));
+        // }
+
+        uint256 totalSupply = i_yesToken.totalSupply(); //Im dumb they are the same
+        // uint256 tokenLockedYes = i_yesToken.balanceOf(owner()); //im so dumb
+        // uint256 tokenLockedNo = i_noToken.balanceOf(owner());
+
+        uint256 wantedTokenSold;
+        uint256 otherTokenSold;
+
+        if (!_isSelling) {
+            wantedTokenSold = totalSupply - wantedTokenReserve + _tradingAmount; //I WAS SO CONFUSED :"tokens sold" INCLUDES locked tokens I guess. Makes sense now that I think abt it cuz their whole point is to set an initial probability by kind of forcing or simulating a trade
+            otherTokenSold = totalSupply - otherTokenReserve;
+        } else {
+            wantedTokenSold = totalSupply - wantedTokenReserve - _tradingAmount;
+            otherTokenSold = totalSupply - otherTokenReserve;
+        }
+
+        uint256 prob = _calculateProbability(wantedTokenSold, totalSupply);
+        uint256 otherProb = _calculateProbability(otherTokenSold, totalSupply);
+        return (prob * PRECISION) / (otherProb + prob);
+        
     }
 
     /**
@@ -317,6 +458,11 @@ contract PredictionMarket is Ownable {
      */
     function _getCurrentReserves(Outcome _outcome) private view returns (uint256, uint256) {
         /// Checkpoint 7 ////
+        if (_outcome == Outcome.YES){
+            return (i_yesToken.balanceOf(address(this)), i_noToken.balanceOf(address(this)));
+        } else{ 
+            return (i_noToken.balanceOf(address(this)), i_yesToken.balanceOf(address(this)));
+        }
     }
 
     /**
@@ -327,6 +473,12 @@ contract PredictionMarket is Ownable {
      */
     function _calculateProbability(uint256 tokensSold, uint256 totalSold) private pure returns (uint256) {
         /// Checkpoint 7 ////
+
+        if (totalSold == 0) {
+            revert PredictionMarket__InvalidProbability();
+        }        
+
+        return (tokensSold * PRECISION) / totalSold;
     }
 
     /////////////////////////
